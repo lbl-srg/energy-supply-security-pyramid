@@ -25,12 +25,23 @@ class Test_Maslow(unittest.TestCase):
                      Sd="D11:D15,E11:E15",
                      Sto_start = "D11:D11,E11:E11",
                      Sto_end = "D11:D11,E11:E11",
-                     c = "D11:D11,E11:E11")
+                     a = "D11:D11,E11:E11",
+                     c = "D11:D11,E11:E11",
+                     sigma = "D11")
         SPG = c.get_SPG()
         print(f"*** SPG is {SPG}")
         
         SAG = c.get_SAG()
         print(f"*** SAG is {SAG}")
+
+        AUG = c.get_AUG()
+        print(f"*** AUG is {AUG}")
+
+        SSG = c.get_SSG()
+        print(f"*** SSG is {SSG}")
+
+        AUT = c.get_AUT()
+        print(f"*** AUT is {AUT}")
 
         #c.get_I()
 

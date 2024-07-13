@@ -29,7 +29,9 @@ class Maslow(object):
                  Sd,
                  Sto_start,
                  Sto_end,
-                 c):
+                 a,
+                 c,
+                 sigma):
 
         # --------------------------
         # Class variables
@@ -42,7 +44,6 @@ class Maslow(object):
         time = self._time[self._time.columns.to_list()[0]]
         self._time_step = time[1] - time[0]
         self._I = self._get_pandas_frames(I)
-        #FIXME
         self._P = self._get_pandas_frames(P)
         self._D = self._get_pandas_frames(D)
         self._E = self._get_pandas_frames(E)
@@ -51,7 +52,11 @@ class Maslow(object):
         self._Sd = self._get_pandas_frames(Sd)
         self._Sto_start = self._get_pandas_frames(Sto_start)
         self._Sto_end = self._get_pandas_frames(Sto_end)
+        self._a = self._get_pandas_frames(a)
         self._c = self._get_pandas_frames(c)
+
+        self._sigma = self._get_cell_value(sigma)
+
 
         if self._I.shape != self._P.shape:
             raise RuntimeError("I and P must have the same dimensions.")
@@ -75,10 +80,26 @@ class Maslow(object):
             raise RuntimeError("Sto_start must have one row only as it is not a time series.")
         if self._Sto_end.shape[0] != 1:
             raise RuntimeError("Sto_end must have one row only as it is not a time series.")
+        if self._a.shape[0] != 1:
+            raise RuntimeError("a must have one row only as it is not a time series.")
         if self._c.shape[0] != 1:
             raise RuntimeError("c must have one row only as it is not a time series.")
+        if not np.isscalar(self._sigma):
+            raise RuntimeError("sigma must be a single cell.")
 
         #FIXME: Do we need a Sto_start somewhere?
+        #FIXME: implement conversion rate c_r for energy carriers
+
+    def _get_cell_value(self, cell_id):
+        """
+        Get the value of an individual cell
+
+        :param: The id of the cell, such as "A1" for the first cell of the sheet
+        """
+        from openpyxl import load_workbook
+        wb = load_workbook(self._filename, data_only=True)
+        ws = wb[self._sheet]
+        return ws[cell_id].value
 
     def _get_pandas_frames(self, range_string):
         """ Low level function to return Pandas data frame.
@@ -135,29 +156,31 @@ class Maslow(object):
     def integrate_all_columns(data_frame, time_step):
         return sum(Maslow.integrate_by_columns(data_frame, time_step))
         
+    @staticmethod
+    def get_d(P, time_step):
+        phis = Maslow.get_phis(P, time_step)
+        n = len(phis)
+        summand = 0
+        for phi in phis:
+            summand += phi * np.log(phi)
+
+        d = - summand / np.log(n)
+        return d
+
+    @staticmethod
+    def get_phis(P, time_step):
+        integrals = Maslow.integrate_by_columns(P, time_step)
+        denominator = sum(integrals)
+        phi = list(np.multiply(1/denominator, integrals))
+        for p in phi:
+            if abs(1-p) < 1E-8:
+                raise RuntimeError("Data error. Calculated phi for a quantity that is zero. This is not allowed for calculating SPG.")
+        return phi
+
     def get_SPG(self):
         """
         Returns the self-production grade SPG
         """
-
-        def get_phis(P):
-            integrals = Maslow.integrate_by_columns(P, self._time_step)
-            denominator = sum(integrals)
-            phi = list(np.multiply(1/denominator, integrals))
-            for p in phi:
-                if abs(1-p) < 1E-8:
-                    raise RuntimeError("Data error. Calculated phi for a quantity that is zero. This is not allowed for calculating SPG.")
-            return phi
-        
-        def get_d(P):
-            phis = get_phis(P)
-            n = len(phis)
-            summand = 0
-            for phi in phis:
-                summand += phi * np.log(phi)
-
-            d = - summand / np.log(n)
-            return d
         
         num = []
 
@@ -167,7 +190,7 @@ class Maslow(object):
         Sto_end = Maslow.integrate_all_columns(self._Sto_end, 1)
         D = Maslow.integrate_all_columns(self._D, self._time_step)
 
-        SPG = get_d(self._P) * (P-L+Sto_end)/D
+        SPG = Maslow.get_d(self._P, self._time_step) * (P-L+Sto_end)/D
         return SPG
 
     def get_SAG(self):
@@ -212,13 +235,79 @@ class Maslow(object):
         for i in range(nFlo):
             sum_c += c[0,i]
         summand = c / sum_c * a
-        SAG = 0
-        for i in range(nFlo):
-            SAG += summand[0, i]
+        SAG = np.sum(summand)
 
         return SAG
 
+    def get_AUG(self):
+        """
+        Get the autonomy grade AUG
+        """
+        I = self._I.to_numpy()
+        # Integral \int_T I_i(t) dt
+        # int_I_i is a vector whose elements are the integrals of each energy carrier i
+        int_I_i = self._time_step * sum(I)
+        # Sum of all integrals, e.g., the denominator sum_j \int_T I_j(t) dt
+        int_I = np.sum(int_I_i)
+        # Sum \sum)j a_j
+        a = self._a.to_numpy()[0] # Index 0 converts [[xxx]] to [xxx]
+        sum_a_j = np.sum(a)
+        # Each term of the big sum
+        nFlo = I.shape[1]
+        terms_i = np.zeros(nFlo)
+        for i in range(nFlo):
+            terms_i[i] = a[i] / sum_a_j * int_I_i[i] / int_I
+        term = sum(terms_i)
 
+        AUG = Maslow.get_d(self._I, self._time_step) * term
+
+        return AUG
+    
+    def get_SSG(self):
+        """
+        Returns the Self-Sufficiency Grad
+        """
+        def get_g_i():
+            P = self._P.to_numpy()
+            Sd = self._Sd.to_numpy()
+            Sb = self._Sb.to_numpy()
+            L = self._L.to_numpy()
+            E = self._E.to_numpy()
+            D = self._D.to_numpy()
+
+            lhs = P + Sd - Sb - L - E
+            rhs = D
+
+            retB = (lhs >= rhs)
+            ret = retB.astype(float)
+
+            return ret
+
+        g = get_g_i()
+
+        D = self._D.to_numpy()
+        nFlo = D.shape[1]
+        sum_D_over_j = np.zeros(D.shape[0])
+        for i in range(nFlo):
+            sum_D_over_j += D[:,i]
+        # Compute integral, for each energy carrier i
+        num = g * D
+        # Array with each element being an energy carrier i, and the array contains the integral
+        a = np.zeros(nFlo)
+        for i in range(nFlo):
+            # Integrate over each time step and divide each term by sum_j D_j(t)
+            a1 = num[:,i] / sum_D_over_j
+            a[i] = sum(a1)
+        
+        SSG = np.sum(a)
+
+        return SSG
+
+    def get_AUT(self):
+        """
+        Get the Autarky Grad
+        """
+        return self._sigma * self.get_SSG()
 
     def ESSI(self, w, SPSG, SAG, AUG, SSG, AUT):
         """
