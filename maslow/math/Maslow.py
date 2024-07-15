@@ -19,19 +19,20 @@ class Maslow(object):
 
     """
 
-    def __init__(self, filename, sheet, time,
-                 I,
-                 P,
-                 D,
-                 E,
-                 L,
-                 Sb,
-                 Sd,
-                 Sto_start,
-                 Sto_end,
-                 a,
-                 c,
-                 sigma):
+    def __init__(self, filename, sheet,
+                 sigma="B3",
+                 time="A20:A8779",
+                 I="AV20:BI8779",
+                 P="AG20:AT8779",
+                 D="C20:P8779",
+                 E="BK20:BX8779",
+                 L="R20:AE8779",
+                 Sb="BZ20:CM8779",
+                 Sd="CO20:DB8779",
+                 Sto_start="C18:P18",
+                 Sto_end="C19:P19",
+                 a="AV17:BI17",
+                 c="C16:P16"):
 
         # --------------------------
         # Class variables
@@ -40,22 +41,21 @@ class Maslow(object):
         self._sheet = sheet
 
         # data frames
-        self._time = self._get_pandas_frame(time)
-        time = self._time[self._time.columns.to_list()[0]]
-        self._time_step = time[1] - time[0]
+        time = self._get_pandas_frame(time)
+        time_list = time[time.columns.to_list()[0]]
+        self._time_step = time_list[1] - time_list[0]
+        self._sigma = self._get_cell_value(sigma)
         self._I = self._get_pandas_frames(I)
         self._P = self._get_pandas_frames(P)
         self._D = self._get_pandas_frames(D)
         self._E = self._get_pandas_frames(E)
         self._L = self._get_pandas_frames(L)
-        self._Sb = self._get_pandas_frames(Sb)
-        self._Sd = self._get_pandas_frames(Sd)
-        self._Sto_start = self._get_pandas_frames(Sto_start)
-        self._Sto_end = self._get_pandas_frames(Sto_end)
-        self._a = self._get_pandas_frames(a)
-        self._c = self._get_pandas_frames(c)
-
-        self._sigma = self._get_cell_value(sigma)
+        self._Sb = self._get_pandas_frames(Sb).fillna(0)
+        self._Sd = self._get_pandas_frames(Sd).fillna(0)
+        self._Sto_start = (self._get_pandas_frames(Sto_start).fillna(0)).iloc[0].to_list()
+        self._Sto_end = (self._get_pandas_frames(Sto_end).fillna(0)).iloc[0].to_list()
+        self._a = (self._get_pandas_frames(a)).iloc[0].to_list()
+        self._c = (self._get_pandas_frames(c)).iloc[0].to_list()
 
 
         if self._I.shape != self._P.shape:
@@ -70,24 +70,18 @@ class Maslow(object):
             raise RuntimeError("I and Sb must have the same dimensions.")
         if self._I.shape != self._Sd.shape:
             raise RuntimeError("I and Sd must have the same dimensions.")
-        if self._I.shape[1] != self._Sto_start.shape[1]:
+        if self._I.shape[1] != len(self._Sto_start):
             raise RuntimeError("I and Sto_start must have the same number of energy flows.")
-        if self._I.shape[1] != self._Sto_end.shape[1]:
+        if self._I.shape[1] != len(self._Sto_end):
             raise RuntimeError("I and Sto_end must have the same number of energy flows.")
-        if self._I.shape[1] != self._c.shape[1]:
+        if self._I.shape[1] != len(self._c):
             raise RuntimeError("I and c must have the same number of energy flows.")
-        if self._Sto_start.shape[0] != 1:
-            raise RuntimeError("Sto_start must have one row only as it is not a time series.")
-        if self._Sto_end.shape[0] != 1:
-            raise RuntimeError("Sto_end must have one row only as it is not a time series.")
-        if self._a.shape[0] != 1:
-            raise RuntimeError("a must have one row only as it is not a time series.")
-        if self._c.shape[0] != 1:
-            raise RuntimeError("c must have one row only as it is not a time series.")
+        if self._I.shape[1] != len(self._a):
+            raise RuntimeError("I and a must have the same number of energy flows.")
+
         if not np.isscalar(self._sigma):
             raise RuntimeError("sigma must be a single cell.")
 
-        #FIXME: Do we need a Sto_start somewhere?
         #FIXME: implement conversion rate c_r for energy carriers
 
     def _get_cell_value(self, cell_id):
@@ -132,8 +126,10 @@ class Maslow(object):
                 data_rows.append([cell.value for cell in row])
             return pandas.DataFrame(data_rows, columns=get_column_interval(col_start, col_end))
 
-        wb = load_workbook(filename=self._filename, 
-                   read_only=True)
+        wb = load_workbook(
+                filename=self._filename, 
+                read_only=True,
+                data_only=True)
         ws = wb[self._sheet]
         vals = load_workbook_range(range_string, ws)
         return vals
@@ -157,11 +153,15 @@ class Maslow(object):
         return sum(Maslow.integrate_by_columns(data_frame, time_step))
         
     @staticmethod
-    def get_d(P, time_step):
+    def get_d(P, time_step, carrier_type):
         phis = Maslow.get_phis(P, time_step)
         n = len(phis)
         summand = 0
+        iC = 0
         for phi in phis:
+            iC += 1
+            if phi < 1E-10:
+                raise RuntimeError(f"Attempting to compute log(0) when computing diversity index. Make sure data is not all zero for energy carrier {carrier_type}[{iC}].")
             summand += phi * np.log(phi)
 
         d = - summand / np.log(n)
@@ -186,11 +186,13 @@ class Maslow(object):
 
         P = Maslow.integrate_all_columns(self._P, self._time_step)
         L = Maslow.integrate_all_columns(self._L, self._time_step)
-        # Call integrate with a time step of 1, which will get the right data format.
-        Sto_end = Maslow.integrate_all_columns(self._Sto_end, 1)
+
+        Sto_start = sum(self._Sto_start)
+        Sto_end = sum(self._Sto_end)
+
         D = Maslow.integrate_all_columns(self._D, self._time_step)
 
-        SPG = Maslow.get_d(self._P, self._time_step) * (P-L+Sto_end)/D
+        SPG = Maslow.get_d(self._P, self._time_step, "P") * (P-L+Sto_end-Sto_start)/D
         return SPG
 
     def get_SAG(self):
@@ -230,11 +232,8 @@ class Maslow(object):
             a[i] = sum(a1)
 
         # sum of all c
-        c = self._c.to_numpy()
-        sum_c = 0
-        for i in range(nFlo):
-            sum_c += c[0,i]
-        summand = c / sum_c * a
+        c = self._c
+        summand = c * a / sum(c)
         SAG = np.sum(summand)
 
         return SAG
@@ -250,7 +249,7 @@ class Maslow(object):
         # Sum of all integrals, e.g., the denominator sum_j \int_T I_j(t) dt
         int_I = np.sum(int_I_i)
         # Sum \sum)j a_j
-        a = self._a.to_numpy()[0] # Index 0 converts [[xxx]] to [xxx]
+        a = self._a
         sum_a_j = np.sum(a)
         # Each term of the big sum
         nFlo = I.shape[1]
@@ -259,7 +258,8 @@ class Maslow(object):
             terms_i[i] = a[i] / sum_a_j * int_I_i[i] / int_I
         term = sum(terms_i)
 
-        AUG = Maslow.get_d(self._I, self._time_step) * term
+        d = Maslow.get_d(self._I, self._time_step, "I")
+        AUG = d * term
 
         return AUG
     

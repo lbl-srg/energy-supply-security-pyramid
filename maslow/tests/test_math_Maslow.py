@@ -13,29 +13,16 @@ class Test_Maslow(unittest.TestCase):
     def test_Maslow(self):
         import os
         import maslow.math.Maslow as m
-        c = m.Maslow(filename=os.path.join("maslow", "data", "smallTest.xlsx"),
-                     sheet="supply_TS_smooth_Empa",
-                     time="A11:A15",
-                     I="D11:D15,E11:E15",
-                     P="D11:D15,E11:E15",
-                     D="D11:D15,E11:E15",
-                     E="D11:D15,E11:E15",
-                     L="D11:D15,E11:E15",
-                     Sb="D11:D15,E11:E15",
-                     Sd="D11:D15,E11:E15",
-                     Sto_start = "D11:D11,E11:E11",
-                     Sto_end = "D11:D11,E11:E11",
-                     a = "D11:D11,E11:E11",
-                     c = "D11:D11,E11:E11",
-                     sigma = "D11")
-        SPG = c.get_SPG()
-        print(f"*** SPG is {SPG}")
+        c = m.Maslow(filename=os.path.join("maslow", "data", "Maslow_CH_Ref_exec3.xlsx"),
+                     sheet="supply_TS_smooth_Empa")
+#        SPG = c.get_SPG()
+#        print(f"*** SPG is {SPG}")
         
         SAG = c.get_SAG()
         print(f"*** SAG is {SAG}")
 
-        AUG = c.get_AUG()
-        print(f"*** AUG is {AUG}")
+#        AUG = c.get_AUG()
+#        print(f"*** AUG is {AUG}")
 
         SSG = c.get_SSG()
         print(f"*** SSG is {SSG}")
