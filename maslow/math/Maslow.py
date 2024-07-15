@@ -19,20 +19,21 @@ class Maslow(object):
 
     """
 
+    # Fixme: replace 87 with 8778
     def __init__(self, filename, sheet,
-                 sigma="B3",
-                 time="A20:A8779",
-                 I="AV20:BI8779",
-                 P="AG20:AT8779",
-                 D="C20:P8779",
-                 E="BK20:BX8779",
-                 L="R20:AE8779",
-                 Sb="BZ20:CM8779",
-                 Sd="CO20:DB8779",
-                 Sto_start="C18:P18",
-                 Sto_end="C19:P19",
-                 a="AV17:BI17",
-                 c="C16:P16"):
+                 sigma="B15",
+                 time="A19:A8778",
+                 I="AV19:BI8778",
+                 P="AG19:AT8778",
+                 D="C19:P8778",
+                 E="BK19:BX8778",
+                 L="R19:AE8778",
+                 Sb="BZ19:CM8778",
+                 Sd="CO19:DB8778",
+                 Sto_start="BZ16:CM16",
+                 Sto_end="CO17:DB17",
+                 a="AV14:BI14",
+                 c="C13:P13"):
 
         # --------------------------
         # Class variables
@@ -91,7 +92,7 @@ class Maslow(object):
         :param: The id of the cell, such as "A1" for the first cell of the sheet
         """
         from openpyxl import load_workbook
-        wb = load_workbook(self._filename, data_only=True)
+        wb = load_workbook(self._filename, read_only=True, data_only=True)
         ws = wb[self._sheet]
         return ws[cell_id].value
 
@@ -127,7 +128,7 @@ class Maslow(object):
             return pandas.DataFrame(data_rows, columns=get_column_interval(col_start, col_end))
 
         wb = load_workbook(
-                filename=self._filename, 
+                filename=self._filename,
                 read_only=True,
                 data_only=True)
         ws = wb[self._sheet]
@@ -139,7 +140,7 @@ class Maslow(object):
         """
         Integrate each column individually and return an array of
         the integral of each column.
-        
+
         Note that this function assumes each entry to have
         the same time step dt
         """
@@ -147,52 +148,61 @@ class Maslow(object):
         for c in data_frame.columns.to_list():
             sums.append(time_step * sum(data_frame[c]))
         return sums
-    
+
     @staticmethod
     def integrate_all_columns(data_frame, time_step):
         return sum(Maslow.integrate_by_columns(data_frame, time_step))
-        
+
     @staticmethod
-    def get_d(P, time_step, carrier_type):
-        phis = Maslow.get_phis(P, time_step)
+    def get_d(P, time_step, setM, carrier_type):
+        phis = Maslow.get_phis(P, time_step, setM)
         n = len(phis)
+        if n == 0:
+            raise RuntimeError(f"Attempting to compute diversity index, but all energy carriers for {carrier_type} are zero.")
         summand = 0
         iC = 0
         for phi in phis:
             iC += 1
-            if phi < 1E-10:
-                raise RuntimeError(f"Attempting to compute log(0) when computing diversity index. Make sure data is not all zero for energy carrier {carrier_type}[{iC}].")
             summand += phi * np.log(phi)
 
         d = - summand / np.log(n)
         return d
 
     @staticmethod
-    def get_phis(P, time_step):
-        integrals = Maslow.integrate_by_columns(P, time_step)
+    def get_phis(P, time_step, setM):
+        all_integrals = Maslow.integrate_by_columns(P, time_step)
+        integrals = [all_integrals[i] for i in setM]
         denominator = sum(integrals)
         phi = list(np.multiply(1/denominator, integrals))
-        for p in phi:
-            if abs(1-p) < 1E-8:
-                raise RuntimeError("Data error. Calculated phi for a quantity that is zero. This is not allowed for calculating SPG.")
         return phi
+
+    @staticmethod
+    def get_setM(P):
+        intCols = Maslow.integrate_by_columns(P, 1)
+        m = [x for x in range(len(intCols)) if intCols[x] > 0.0001]
+        return m
 
     def get_SPG(self):
         """
         Returns the self-production grade SPG
         """
-        
+
         num = []
 
-        P = Maslow.integrate_all_columns(self._P, self._time_step)
-        L = Maslow.integrate_all_columns(self._L, self._time_step)
+        setM = Maslow.get_setM(self._P)
 
-        Sto_start = sum(self._Sto_start)
-        Sto_end = sum(self._Sto_end)
+        P = Maslow.integrate_by_columns(self._P, self._time_step)
+        L = Maslow.integrate_by_columns(self._L, self._time_step)
 
-        D = Maslow.integrate_all_columns(self._D, self._time_step)
+        D = Maslow.integrate_by_columns(self._D, self._time_step)
 
-        SPG = Maslow.get_d(self._P, self._time_step, "P") * (P-L+Sto_end-Sto_start)/D
+        num = 0
+        den = 0
+        for i in setM:
+            num += (P[i]-L[i]+self._Sto_end[i]-self._Sto_start[i])
+            den += D[i]
+
+        SPG = Maslow.get_d(self._P, self._time_step, setM, "P") * num / den
         return SPG
 
     def get_SAG(self):
@@ -242,27 +252,32 @@ class Maslow(object):
         """
         Get the autonomy grade AUG
         """
-        I = self._I.to_numpy()
+        # Build set of non-zero contributions
+        setM = Maslow.get_setM(self._I)
+
+        all_I = self._I.to_numpy()
         # Integral \int_T I_i(t) dt
         # int_I_i is a vector whose elements are the integrals of each energy carrier i
-        int_I_i = self._time_step * sum(I)
+        int_all_I_i = self._time_step * sum(all_I)
+        int_I_i = [int_all_I_i[i] for i in setM]
+
         # Sum of all integrals, e.g., the denominator sum_j \int_T I_j(t) dt
         int_I = np.sum(int_I_i)
         # Sum \sum)j a_j
-        a = self._a
+        a = [self._a[i] for i in setM]
         sum_a_j = np.sum(a)
         # Each term of the big sum
-        nFlo = I.shape[1]
-        terms_i = np.zeros(nFlo)
-        for i in range(nFlo):
+        terms_i = np.zeros(len(setM))
+        for i in range(len(setM)):
             terms_i[i] = a[i] / sum_a_j * int_I_i[i] / int_I
         term = sum(terms_i)
 
-        d = Maslow.get_d(self._I, self._time_step, "I")
+        d = Maslow.get_d(self._I, self._time_step, setM, "I")
+
         AUG = d * term
 
         return AUG
-    
+
     def get_SSG(self):
         """
         Returns the Self-Sufficiency Grad
@@ -298,7 +313,7 @@ class Maslow(object):
             # Integrate over each time step and divide each term by sum_j D_j(t)
             a1 = num[:,i] / sum_D_over_j
             a[i] = sum(a1)
-        
+
         SSG = np.sum(a)
 
         return SSG
@@ -309,27 +324,20 @@ class Maslow(object):
         """
         return self._sigma * self.get_SSG()
 
-    def ESSI(self, w, SPSG, SAG, AUG, SSG, AUT):
+    def get_ESSI(self, w):
         """
         This functions returns the energy supply security index
 
-        :param w[]: Array of weights w1, ..., w5
-        :param SPSG: 
-        :param SAG:
-        :param AUG:
-        :param SSG:
-        :param AUT:
+        :param w[]: Array of weights w1, ..., w5 for [SPG, SAG, AUG, SSG, AUT]
         :return: double The energy supply security index
 
         Usage: Type
             >>> import math.Maslow as c
             >>> m = c.Maslow()
-            >>> m.ESSI(w=[0.1, 0.2, 0.3, 0.35, 0.05], \
-            SPSG=0.3, \
-            SAG=0.5, \
-            AUG=0.9, \
-            SSG=0.7, \
-            AUT=0.1)
-            0.65
+            >>> m.ESSI(w=[0.1, 0.2, 0.3, 0.35, 0.05])
         """
-        return  (w[0] * SPSG + w[1] * SAG + w[2] * AUG + w[3] * SSG + w[4] * AUT)/sum(w)
+        return  (w[0] * self.get_SPG()
+                 + w[1] * self.get_SAG()
+                 + w[2] * self.get_AUG()
+                 + w[3] * self.get_SSG()
+                 + w[4] * self.get_AUT())/sum(w)
