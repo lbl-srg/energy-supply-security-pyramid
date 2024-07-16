@@ -242,9 +242,7 @@ class Maslow(object):
                 a[i] += f[k, i] * D[k, i] / sum_D_over_j[k]
             a[i] = a[i] / float(nSte)
 
-        # sum of all c
-        c = self._c
-        summand = c * a / sum(c)
+        summand = self._c * a
         SAG = np.sum(summand)
 
         return SAG
