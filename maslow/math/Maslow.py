@@ -260,7 +260,7 @@ class Maslow(object):
         # Sum of all integrals, e.g., the denominator sum_j \int_T I_j(t) dt
         int_I = np.sum(int_I_i)
         # Sum \sum)j a_j
-        a = self._a[i]
+        a = self._a
         # Each term of the big sum
         nFlo = len(int_I_i)
         terms_i = np.zeros(nFlo)
