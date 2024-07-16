@@ -13,7 +13,7 @@ class Test_Maslow(unittest.TestCase):
     def test_Maslow(self):
         import os
         import maslow.math.Maslow as m
-        print("*** Starting test")
+
         c = m.Maslow(filename=os.path.join("maslow", "data", "Maslow_CH_Ref_exec4.xlsx"),
                      sheet="supply_TS_smooth_Empa")
         SPG = c.get_SPG()

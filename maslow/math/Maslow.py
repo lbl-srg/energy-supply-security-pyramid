@@ -19,7 +19,7 @@ class Maslow(object):
 
     """
 
-    # Fixme: replace 87 with 8778
+    # Fixme: replace 23 with 8778
     def __init__(self, filename, sheet,
                  sigma="B15",
                  time="A19:A8778",
@@ -228,18 +228,19 @@ class Maslow(object):
         f = get_f_i()
 
         D = self._D.to_numpy()
+        nSte = D.shape[0]
         nFlo = D.shape[1]
         sum_D_over_j = np.zeros(D.shape[0])
         for i in range(nFlo):
             sum_D_over_j += D[:,i]
-        # Compute integral, for each energy carrier i
-        num = f * D
+
         # Array with each element being an energy carrier i, and the array contains the integral
         a = np.zeros(nFlo)
         for i in range(nFlo):
             # Integrate over each time step and divide each term by sum_j D_j(t)
-            a1 = num[:,i] / sum_D_over_j
-            a[i] = sum(a1)
+            for k in range(nSte): # k is the time step
+                a[i] += f[k, i] * D[k, i] / sum_D_over_j[k]
+            a[i] = a[i] / float(nSte)
 
         # sum of all c
         c = self._c
@@ -301,6 +302,7 @@ class Maslow(object):
         g = get_g_i()
 
         D = self._D.to_numpy()
+        nSte = D.shape[0]
         nFlo = D.shape[1]
         sum_D_over_j = np.zeros(D.shape[0])
         for i in range(nFlo):
@@ -312,7 +314,7 @@ class Maslow(object):
         for i in range(nFlo):
             # Integrate over each time step and divide each term by sum_j D_j(t)
             a1 = num[:,i] / sum_D_over_j
-            a[i] = sum(a1)
+            a[i] = sum(a1) / nSte
 
         SSG = np.sum(a)
 
