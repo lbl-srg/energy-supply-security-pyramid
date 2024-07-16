@@ -197,10 +197,10 @@ class Maslow(object):
         D = Maslow.integrate_by_columns(self._D, self._time_step)
 
         num = 0
-        den = 0
         for i in setM:
             num += (P[i]-L[i]+self._Sto_end[i]-self._Sto_start[i])
-            den += D[i]
+
+        den = sum(D)
 
         SPG = Maslow.get_d(self._P, self._time_step, setM, "P") * num / den
         return SPG
@@ -251,25 +251,25 @@ class Maslow(object):
         """
         Get the autonomy grade AUG
         """
-        # Build set of non-zero contributions
-        setM = Maslow.get_setM(self._I)
 
         all_I = self._I.to_numpy()
         # Integral \int_T I_i(t) dt
         # int_I_i is a vector whose elements are the integrals of each energy carrier i
-        int_all_I_i = self._time_step * sum(all_I)
-        int_I_i = [int_all_I_i[i] for i in setM]
+        int_I_i = self._time_step * sum(all_I)
 
         # Sum of all integrals, e.g., the denominator sum_j \int_T I_j(t) dt
         int_I = np.sum(int_I_i)
         # Sum \sum)j a_j
-        a = [self._a[i] for i in setM]
-        sum_a_j = np.sum(a)
+        a = self._a[i]
         # Each term of the big sum
-        terms_i = np.zeros(len(setM))
-        for i in range(len(setM)):
-            terms_i[i] = a[i] / sum_a_j * int_I_i[i] / int_I
+        nFlo = len(int_I_i)
+        terms_i = np.zeros(nFlo)
+        for i in range(nFlo):
+            terms_i[i] = a[i] * int_I_i[i] / int_I
         term = sum(terms_i)
+
+        # Build set of non-zero contributions
+        setM = Maslow.get_setM(self._I)
 
         d = Maslow.get_d(self._I, self._time_step, setM, "I")
 
