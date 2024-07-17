@@ -19,7 +19,6 @@ class Maslow(object):
 
     """
 
-    # Fixme: replace 23 with 8778
     def __init__(self, filename, sheet,
                  sigma="B15",
                  time="A19:A8778",
@@ -82,8 +81,6 @@ class Maslow(object):
 
         if not np.isscalar(self._sigma):
             raise RuntimeError("sigma must be a single cell.")
-
-        #FIXME: implement conversion rate c_r for energy carriers
 
     def _get_cell_value(self, cell_id):
         """
@@ -220,7 +217,8 @@ class Maslow(object):
             lhs = P + I + Sd - Sb - L
             rhs = D
 
-            retB = (lhs >= rhs)
+            retB = abs(lhs - rhs) < np.full(rhs.shape, 0.001)
+            #retB = abs(lhs >= rhs)
             ret = retB.astype(float)
 
             return ret
@@ -292,7 +290,8 @@ class Maslow(object):
             lhs = P + Sd - Sb - L - E
             rhs = D
 
-            retB = (lhs >= rhs)
+            retB = abs(lhs - rhs) < np.full(rhs.shape, 0.001)
+            #retB = abs(lhs >= rhs)
             ret = retB.astype(float)
 
             return ret
