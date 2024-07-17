@@ -217,7 +217,7 @@ class Maslow(object):
             lhs = P + I + Sd - Sb - L
             rhs = D
 
-            retB = abs(lhs - rhs) < np.full(rhs.shape, 0.001)
+            retB = lhs >= rhs - np.full(rhs.shape, 1E-6)
             #retB = abs(lhs >= rhs)
             ret = retB.astype(float)
 
@@ -290,7 +290,7 @@ class Maslow(object):
             lhs = P + Sd - Sb - L - E
             rhs = D
 
-            retB = abs(lhs - rhs) < np.full(rhs.shape, 0.001)
+            retB = lhs >= rhs - np.full(rhs.shape, 1E-6)
             #retB = abs(lhs >= rhs)
             ret = retB.astype(float)
 
