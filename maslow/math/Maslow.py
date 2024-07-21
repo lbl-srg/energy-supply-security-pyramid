@@ -209,12 +209,13 @@ class Maslow(object):
         def get_f_i():
             P = self._P.to_numpy()
             I = self._I.to_numpy()
+            E = self._E.to_numpy()
             Sd = self._Sd.to_numpy()
             Sb = self._Sb.to_numpy()
             L = self._L.to_numpy()
             D = self._D.to_numpy()
 
-            lhs = P + I + Sd - Sb - L
+            lhs = P + I + E + Sd - Sb - L
             rhs = D
 
             retB = lhs >= rhs - np.full(rhs.shape, 1E-6)
