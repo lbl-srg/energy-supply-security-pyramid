@@ -22,17 +22,17 @@ class Maslow(object):
     def __init__(self, filename, sheet,
                  sigma="B15",
                  time="A19:A8778",
-                 I="AV19:BI8778",
-                 P="AG19:AT8778",
-                 D="C19:P8778",
-                 E="BK19:BX8778",
-                 L="R19:AE8778",
-                 Sb="BZ19:CM8778",
-                 Sd="CO19:DB8778",
-                 Sto_start="BZ16:CM16",
-                 Sto_end="CO17:DB17",
-                 a="AV14:BI14",
-                 c="C13:P13"):
+                 I="AY19:BM8778",
+                 P="AI19:AW8778",
+                 D="C19:Q8778",
+                 E="BO19:CC8778",
+                 L="S19:AG8778",
+                 Sb="CE19:CS8778",
+                 Sd="CU19:DI8778",
+                 Sto_start="CE16:CS16",
+                 Sto_end="CU17:DI17",
+                 a="AY14:BM14",
+                 c="C13:Q13"):
 
         # --------------------------
         # Class variables
