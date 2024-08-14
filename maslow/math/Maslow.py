@@ -20,19 +20,20 @@ class Maslow(object):
     """
 
     def __init__(self, filename, sheet,
-                 sigma="B15",
-                 time="A19:A8778",
-                 I="AY19:BM8778",
-                 P="AI19:AW8778",
-                 D="C19:Q8778",
-                 E="BO19:CC8778",
-                 L="S19:AG8778",
-                 Sb="CE19:CS8778",
-                 Sd="CU19:DI8778",
-                 Sto_start="CE16:CS16",
-                 Sto_end="CU17:DI17",
+                 sigma="B16",
+                 time="A20:A8779",
+                 I="AY20:BM8779",
+                 P="AI20:AW8779",
+                 D="C20:Q8779",
+                 E="BO20:CC8779",
+                 L="S20:AG8779",
+                 Sb="CE20:CS8779",
+                 Sd="CU20:DI8779",
+                 Sto_start="CE17:CS17",
+                 Sto_end="CU18:DI18",
                  a="AY14:BM14",
-                 c="C13:Q13"):
+                 c="C13:Q13",
+                 n="C15:Q15"):
 
         # --------------------------
         # Class variables
@@ -56,6 +57,7 @@ class Maslow(object):
         self._Sto_end = (self._get_pandas_frames(Sto_end).fillna(0)).iloc[0].to_list()
         self._a = (self._get_pandas_frames(a)).iloc[0].to_list()
         self._c = (self._get_pandas_frames(c)).iloc[0].to_list()
+        self._n = (self._get_pandas_frames(n)).iloc[0].to_list()
 
 
         if self._I.shape != self._P.shape:
@@ -165,6 +167,12 @@ class Maslow(object):
         d = - summand / np.log(n)
         return d
 
+
+    @staticmethod
+    def get_columns(P, setM):
+        return np.transpose(np.array([P[:,i] for i in setM]))
+
+
     @staticmethod
     def get_phis(P, time_step, setM):
         all_integrals = Maslow.integrate_by_columns(P, time_step)
@@ -251,27 +259,51 @@ class Maslow(object):
         Get the autonomy grade AUG
         """
 
+        # Build set of non-zero contributions
+        setM_D = Maslow.get_setM(self._D)
+
         all_I = self._I.to_numpy()
+        I_inM = Maslow.get_columns(all_I, setM_D)
+
+        # Compute theta
+        D_inM = Maslow.get_columns(self._D.to_numpy(), setM_D)
+        all_L = self._L.to_numpy()
+        L_inM = Maslow.get_columns(self._L.to_numpy(), setM_D)
+        # Add D and L element-wise
+        D_L_inM = np.add(D_inM , L_inM)
+        int_D_L_inM = self._time_step * sum(D_L_inM)
+
+        cardSetM = np.size(I_inM, 1)
+        theta = np.zeros(cardSetM)
+        stoEnd_inM = [self._Sto_end[i] for i in setM_D]
+        n_inM = [self._n[i] for i in setM_D]
+        for i in range(cardSetM):
+            theta[i] = stoEnd_inM[i] / n_inM[i] / int_D_L_inM[i]
+            if theta[i] > 1:
+                theta[i] = 1
+
+        # Compute a'
+        a_inM = [self._a[i] for i in setM_D]
+        aP = np.zeros(cardSetM)
+        for i in range(cardSetM):
+            aP[i] = a_inM[i] + (1-a_inM[i]) * theta[i]
+
         # Integral \int_T I_i(t) dt
         # int_I_i is a vector whose elements are the integrals of each energy carrier i
         int_I_i = self._time_step * sum(all_I)
 
         # Sum of all integrals, e.g., the denominator sum_j \int_T I_j(t) dt
         int_I = np.sum(int_I_i)
-        # Sum \sum)j a_j
-        a = self._a
+
         # Each term of the big sum
-        nFlo = len(int_I_i)
-        terms_i = np.zeros(nFlo)
-        for i in range(nFlo):
-            terms_i[i] = a[i] * int_I_i[i] / int_I
+
+        terms_i = np.zeros(cardSetM)
+        for i in range(cardSetM):
+            terms_i[i] = aP[i] * int_I_i[i] / int_I
         term = sum(terms_i)
 
-        # Build set of non-zero contributions
-        setM = Maslow.get_setM(self._I)
-
-        d = Maslow.get_d(self._I, self._time_step, setM, "I")
-
+        setM_I = Maslow.get_setM(self._I)
+        d = Maslow.get_d(self._I, self._time_step, setM_I, "I")
         AUG = d * term
 
         return AUG
