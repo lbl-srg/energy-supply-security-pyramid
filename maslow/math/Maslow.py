@@ -260,30 +260,29 @@ class Maslow(object):
         """
 
         # Build set of non-zero contributions
-        setM_D = Maslow.get_setM(self._D)
+        setM = Maslow.get_setM(self._I)
 
         all_I = self._I.to_numpy()
-        I_inM = Maslow.get_columns(all_I, setM_D)
+        I_inM = Maslow.get_columns(all_I, setM)
 
         # Compute theta
-        D_inM = Maslow.get_columns(self._D.to_numpy(), setM_D)
-        all_L = self._L.to_numpy()
-        L_inM = Maslow.get_columns(self._L.to_numpy(), setM_D)
+        D_inM = Maslow.get_columns(self._D.to_numpy(), setM)
+        L_inM = Maslow.get_columns(self._L.to_numpy(), setM)
         # Add D and L element-wise
         D_L_inM = np.add(D_inM , L_inM)
         int_D_L_inM = self._time_step * sum(D_L_inM)
 
         cardSetM = np.size(I_inM, 1)
         theta = np.zeros(cardSetM)
-        stoEnd_inM = [self._Sto_end[i] for i in setM_D]
-        n_inM = [self._n[i] for i in setM_D]
+        stoEnd_inM = [self._Sto_end[i] for i in setM]
+        n_inM = [self._n[i] for i in setM]
         for i in range(cardSetM):
             theta[i] = stoEnd_inM[i] / n_inM[i] / int_D_L_inM[i]
             if theta[i] > 1:
                 theta[i] = 1
 
         # Compute a'
-        a_inM = [self._a[i] for i in setM_D]
+        a_inM = [self._a[i] for i in setM]
         aP = np.zeros(cardSetM)
         for i in range(cardSetM):
             aP[i] = a_inM[i] + (1-a_inM[i]) * theta[i]
@@ -302,8 +301,7 @@ class Maslow(object):
             terms_i[i] = aP[i] * int_I_i[i] / int_I
         term = sum(terms_i)
 
-        setM_I = Maslow.get_setM(self._I)
-        d = Maslow.get_d(self._I, self._time_step, setM_I, "I")
+        d = Maslow.get_d(self._I, self._time_step, setM, "I")
         AUG = d * term
 
         return AUG
