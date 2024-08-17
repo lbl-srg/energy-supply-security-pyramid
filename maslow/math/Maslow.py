@@ -260,7 +260,7 @@ class Maslow(object):
         """
 
         # Build set of non-zero contributions
-        setM = Maslow.get_setM(self._I)
+        setM = Maslow.get_setM(self._D)
 
         all_I = self._I.to_numpy()
         I_inM = Maslow.get_columns(all_I, setM)
@@ -277,6 +277,11 @@ class Maslow(object):
         stoEnd_inM = [self._Sto_end[i] for i in setM]
         n_inM = [self._n[i] for i in setM]
         for i in range(cardSetM):
+            if n_inM[i] < 1E-4:
+                raise ValueError(f"Error in AUG calculation n[{i}] must not be zero. Received n[{i}]={n_inM[i]}.")
+
+            if abs(int_D_L_inM[i]) < 1E-4:
+                raise ValueError(f"Error in AUG calculation as imports of carrier {i} is zero, but this carrier is in M(D,T).")
             theta[i] = stoEnd_inM[i] / n_inM[i] / int_D_L_inM[i]
             if theta[i] > 1:
                 theta[i] = 1
