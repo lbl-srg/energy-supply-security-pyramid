@@ -161,6 +161,8 @@ class Maslow(object):
         summand = 0
         iC = 0
         for phi in phis:
+            if phis[iC] < 1E-4:
+                raise RuntimeError(f"Error when calculating d. phi[{iC}] = {phis[iC]}, but it need to be positive to compute the log.")
             iC += 1
             summand += phi * np.log(phi)
 
