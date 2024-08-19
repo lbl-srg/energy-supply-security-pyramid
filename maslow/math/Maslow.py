@@ -262,16 +262,18 @@ class Maslow(object):
         """
 
         # Build set of non-zero contributions
-        setM = Maslow.get_setM(self._D)
+        setM_I = Maslow.get_setM(self._I)
+        setM_D = Maslow.get_setM(self._D)
+        # Intersection of the two sets
+        setM = [x for x in setM_I if x in setM_D]
 
-        all_I = self._I.to_numpy()
-        I_inM = Maslow.get_columns(all_I, setM)
+        I_inM = Maslow.get_columns(self._I.to_numpy(), setM)
 
         # Compute theta
         D_inM = Maslow.get_columns(self._D.to_numpy(), setM)
         L_inM = Maslow.get_columns(self._L.to_numpy(), setM)
         # Add D and L element-wise
-        D_L_inM = np.add(D_inM , L_inM)
+        D_L_inM = np.add(D_inM, L_inM)
         int_D_L_inM = self._time_step * sum(D_L_inM)
 
         cardSetM = np.size(I_inM, 1)
@@ -296,7 +298,7 @@ class Maslow(object):
 
         # Integral \int_T I_i(t) dt
         # int_I_i is a vector whose elements are the integrals of each energy carrier i
-        int_I_i = self._time_step * sum(all_I)
+        int_I_i = self._time_step * sum(I_inM)
 
         # Sum of all integrals, e.g., the denominator sum_j \int_T I_j(t) dt
         int_I = np.sum(int_I_i)
