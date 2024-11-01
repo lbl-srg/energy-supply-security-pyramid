@@ -269,6 +269,12 @@ class Maslow(object):
 
         I_inM = Maslow.get_columns(self._I.to_numpy(), setM)
 
+        # Compute phi (formerly called alpha)
+        int_I = self._time_step * sum(sum(self._I.to_numpy()))
+        int_D = self._time_step * sum(sum(self._D.to_numpy()))
+        int_L = self._time_step * sum(sum(self._L.to_numpy()))
+        phi = int_I/(int_D+int_L)
+
         # Compute theta
         D_inM = Maslow.get_columns(self._D.to_numpy(), setM)
         L_inM = Maslow.get_columns(self._L.to_numpy(), setM)
@@ -276,6 +282,15 @@ class Maslow(object):
         D_L_inM = np.add(D_inM, L_inM)
         int_D_L_inM = self._time_step * sum(D_L_inM)
 
+
+        # Integral \int_T I_i(t) dt
+        # int_I_i is a vector whose elements are the integrals of each energy carrier i
+        int_I_i = self._time_step * sum(I_inM)
+
+        # Sum of all integrals, e.g., the denominator sum_j \int_T I_j(t) dt
+        int_I = np.sum(int_I_i)
+
+        # Compute a'
         cardSetM = np.size(I_inM, 1)
         theta = np.zeros(cardSetM)
         stoEnd_inM = [self._Sto_end[i] for i in setM]
@@ -292,26 +307,14 @@ class Maslow(object):
 
         # Compute a'
         a_inM = [self._a[i] for i in setM]
-        aP = np.zeros(cardSetM)
+        aP_i = np.zeros(cardSetM)
         for i in range(cardSetM):
-            aP[i] = a_inM[i] + (1-a_inM[i]) * theta[i]
+            aP_i[i] = (a_inM[i] + (1-a_inM[i]) * theta[i])*int_I_i[i]/int_I
+        aP = sum(aP_i)
 
-        # Integral \int_T I_i(t) dt
-        # int_I_i is a vector whose elements are the integrals of each energy carrier i
-        int_I_i = self._time_step * sum(I_inM)
-
-        # Sum of all integrals, e.g., the denominator sum_j \int_T I_j(t) dt
-        int_I = np.sum(int_I_i)
-
-        # Each term of the big sum
-
-        terms_i = np.zeros(cardSetM)
-        for i in range(cardSetM):
-            terms_i[i] = aP[i] * int_I_i[i] / int_I
-        term = sum(terms_i)
-
+        # Compute AUG
         d = Maslow.get_d(self._I, self._time_step, setM, "I")
-        AUG = d * term
+        AUG = phi + aP * d * (1-phi)
 
         return AUG
 
