@@ -314,7 +314,7 @@ class Maslow(object):
 
         # Compute AUG
         d = Maslow.get_d(self._I, self._time_step, setM, "I")
-        AUG = phi + aP * d * (1-phi)
+        AUG = (1-phi) + aP * d * phi
 
         return AUG
 
