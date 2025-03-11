@@ -1,1 +1,1 @@
-# maslow-energy-security
+# energy-supply-security-pyramid
