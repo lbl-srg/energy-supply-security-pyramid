@@ -1,5 +1,5 @@
 """
-:mod:`maslow` Modules for computing energy security metrics
+:mod:`essi` Modules for computing energy security metrics
 ===========================================================
 """
 

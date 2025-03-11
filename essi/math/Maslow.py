@@ -8,7 +8,7 @@ import openpyxl
 import numpy as np
 import pandas as pd
 
-class Maslow(object):
+class Essi(object):
     """ Class that implements the energy security metrics.
 
         Note that I, P, D, E, L, Sb and Sd must all have the same
@@ -150,11 +150,11 @@ class Maslow(object):
 
     @staticmethod
     def integrate_all_columns(data_frame, time_step):
-        return sum(Maslow.integrate_by_columns(data_frame, time_step))
+        return sum(Essi.integrate_by_columns(data_frame, time_step))
 
     @staticmethod
     def get_d(P, time_step, setM, carrier_type):
-        phis = Maslow.get_phis(P, time_step, setM)
+        phis = Essi.get_phis(P, time_step, setM)
         n = len(phis)
         if n == 0:
             raise RuntimeError(f"Attempting to compute diversity index, but all energy carriers for {carrier_type} are zero.")
@@ -177,7 +177,7 @@ class Maslow(object):
 
     @staticmethod
     def get_phis(P, time_step, setM):
-        all_integrals = Maslow.integrate_by_columns(P, time_step)
+        all_integrals = Essi.integrate_by_columns(P, time_step)
         integrals = [all_integrals[i] for i in setM]
         denominator = sum(integrals)
         phi = list(np.multiply(1/denominator, integrals))
@@ -185,7 +185,7 @@ class Maslow(object):
 
     @staticmethod
     def get_setM(P):
-        intCols = Maslow.integrate_by_columns(P, 1)
+        intCols = Essi.integrate_by_columns(P, 1)
         m = [x for x in range(len(intCols)) if intCols[x] > 0.0001]
         return m
 
@@ -196,12 +196,12 @@ class Maslow(object):
 
         num = []
 
-        setM = Maslow.get_setM(self._P)
+        setM = Essi.get_setM(self._P)
 
-        P = Maslow.integrate_by_columns(self._P, self._time_step)
-        L = Maslow.integrate_by_columns(self._L, self._time_step)
+        P = Essi.integrate_by_columns(self._P, self._time_step)
+        L = Essi.integrate_by_columns(self._L, self._time_step)
 
-        D = Maslow.integrate_by_columns(self._D, self._time_step)
+        D = Essi.integrate_by_columns(self._D, self._time_step)
 
         num = 0
         for i in setM:
@@ -209,7 +209,7 @@ class Maslow(object):
 
         den = sum(D)
 
-        SPG = Maslow.get_d(self._P, self._time_step, setM, "P") * num / den
+        SPG = Essi.get_d(self._P, self._time_step, setM, "P") * num / den
         return SPG
 
     def get_SAG(self):
@@ -262,12 +262,12 @@ class Maslow(object):
         """
 
         # Build set of non-zero contributions
-        setM_I = Maslow.get_setM(self._I)
-        setM_D = Maslow.get_setM(self._D)
+        setM_I = Essi.get_setM(self._I)
+        setM_D = Essi.get_setM(self._D)
         # Intersection of the two sets
         setM = [x for x in setM_I if x in setM_D]
 
-        I_inM = Maslow.get_columns(self._I.to_numpy(), setM)
+        I_inM = Essi.get_columns(self._I.to_numpy(), setM)
 
         # Compute phi (formerly called alpha)
         int_I = self._time_step * sum(sum(self._I.to_numpy()))
@@ -276,8 +276,8 @@ class Maslow(object):
         phi = int_I/(int_D+int_L)
 
         # Compute theta
-        D_inM = Maslow.get_columns(self._D.to_numpy(), setM)
-        L_inM = Maslow.get_columns(self._L.to_numpy(), setM)
+        D_inM = Essi.get_columns(self._D.to_numpy(), setM)
+        L_inM = Essi.get_columns(self._L.to_numpy(), setM)
         # Add D and L element-wise
         D_L_inM = np.add(D_inM, L_inM)
         int_D_L_inM = self._time_step * sum(D_L_inM)
@@ -313,7 +313,7 @@ class Maslow(object):
         aP = sum(aP_i)
 
         # Compute AUG
-        d = Maslow.get_d(self._I, self._time_step, setM, "I")
+        d = Essi.get_d(self._I, self._time_step, setM, "I")
         AUG = (1-phi) + aP * d * phi
 
         return AUG
@@ -374,8 +374,8 @@ class Maslow(object):
         :return: double The energy supply security index
 
         Usage: Type
-            >>> import math.Maslow as c
-            >>> m = c.Maslow()
+            >>> import math.Essi as c
+            >>> m = c.Essi()
             >>> m.ESSI(w=[0.1, 0.2, 0.3, 0.35, 0.05])
         """
         return  (w[0] * self.get_SPG()

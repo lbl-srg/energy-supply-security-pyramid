@@ -4,7 +4,7 @@ PEP8_ARGS=--recursive --max-line-length=100 \
   --exclude="*/thirdParty/*" \
   --ignore="E402" \
   --aggressive --aggressive --aggressive \
-  maslow
+  essi
 
 
 .PHONY: doc clean
@@ -29,5 +29,5 @@ doctest:
 	math/*.py
 
 unittest:
-	python3 -m unittest discover maslow/tests
+	python3 -m unittest discover essi/tests
 

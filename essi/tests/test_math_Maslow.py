@@ -4,17 +4,17 @@
 import unittest
 import pandas as pd
 
-class Test_Maslow(unittest.TestCase):
+class Test_Essi(unittest.TestCase):
     """
        This class contains the unit tests for
-       :mod:`maslow.math.Maslow`.
+       :mod:`essi.math.Essi`.
     """
 
-    def test_Maslow(self):
+    def test_Essi(self):
         import os
-        import maslow.math.Maslow as m
+        import essi.math.Essi as m
 
-        c = m.Maslow(filename=os.path.join("maslow", "data", "Maslow_CH_Ref_exec.xlsx"),
+        c = m.Essi(filename=os.path.join("essi", "data", "CH_Ref_exec.xlsx"),
                      sheet="supply_TS_smooth_Empa")
         SPG = c.get_SPG()
         print(f"*** SPG is {SPG}")
@@ -32,14 +32,14 @@ class Test_Maslow(unittest.TestCase):
         print(f"*** AUT is {AUT}")
 
     def test_sum(self):
-        import maslow.math.Maslow as m
+        import essi.math.Essi as m
         df = pd.DataFrame({"AAA": [4, 5, 6, 7],
                            "BBB": [10, 20, 30, 40],
                            "CCC": [100, 50, -30, -50]})
 
-        sums = m.Maslow.integrate_by_columns(df, 1)
+        sums = m.Essi.integrate_by_columns(df, 1)
         self.assertEqual(sums, [22, 100, 70])
-        sum = m.Maslow.integrate_all_columns(df, 1)
+        sum = m.Essi.integrate_all_columns(df, 1)
         self.assertEqual(sum, 192)
 
 if __name__ == '__main__':

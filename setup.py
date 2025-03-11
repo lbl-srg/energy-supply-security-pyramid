@@ -6,7 +6,7 @@ from setuptools import setup
 # Python setup file.
 # See http://packages.python.org/an_example_pypi_project/setuptools.html
 
-MAIN_PACKAGE = 'maslow'
+MAIN_PACKAGE = 'essi'
 PACKAGE_PATH =  os.path.abspath(os.path.join(os.path.dirname(__file__), MAIN_PACKAGE))
 
 # Version.
