@@ -1,4 +1,4 @@
-# energy-supply-security-pyramid
+# Energy Supply Security Pyramid
 
 This is the software repository with all code used to compute the energy supply security index.
 
